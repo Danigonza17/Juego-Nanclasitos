@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Pueblo de las Casas Perdidas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+  :root { --c-ui-bg:#1a0e2e; --c-ui-border:#f7c948; --c-ui-text:#f0e6c8; --c-accent:#ff6b6b; --c-green:#4ecca3; }
+  * { margin:0; padding:0; box-sizing:border-box; image-rendering:pixelated; }
+  body { background:#0d0820; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Press Start 2P',monospace; overflow:hidden; }
+  .screen { display:none; width:100vw; height:100vh; }
+  .screen.active { display:flex; }
+
+  #screen-title { background:linear-gradient(160deg,#0d0820 0%,#1a0e3a 50%,#0d1a2e 100%); flex-direction:column; align-items:center; justify-content:center; gap:30px; position:relative; overflow:hidden; }
+  #screen-title::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 30%,rgba(247,201,72,0.08) 0%,transparent 70%); }
+  .title-stars { position:absolute; inset:0; pointer-events:none; }
+  .star { position:absolute; width:2px; height:2px; background:white; border-radius:50%; animation:twinkle 2s infinite alternate; }
+  @keyframes twinkle { from{opacity:0.2} to{opacity:1} }
+  .title-logo { text-align:center; z-index:1; }
+  .title-logo h1 { font-family:'Press Start 2P',monospace; font-size:clamp(14px,3vw,28px); color:var(--c-ui-border); text-shadow:3px 3px 0 #a0820a,0 0 30px rgba(247,201,72,0.5); line-height:1.8; }
+  .title-logo .subtitle { font-family:'VT323',monospace; font-size:clamp(16px,2.5vw,24px); color:var(--c-green); margin-top:10px; letter-spacing:3px; }
+  .btn-start { z-index:1; background:var(--c-ui-border); color:#1a0e2e; border:none; padding:14px 28px; font-family:'Press Start 2P',monospace; font-size:12px; cursor:pointer; clip-path:polygon(4px 0%,calc(100% - 4px) 0%,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0% calc(100% - 4px),0% 4px); animation:pulse-btn 1.5s infinite; transition:transform 0.1s; }
+  .btn-start:hover { transform:scale(1.05); }
+  @keyframes pulse-btn { 0%,100%{box-shadow:0 0 0 rgba(247,201,72,0)} 50%{box-shadow:0 0 20px rgba(247,201,72,0.6)} }
+
+  #screen-select { background:linear-gradient(160deg,#0d0820 0%,#1a0e3a 100%); flex-direction:column; align-items:center; justify-content:center; gap:30px; padding:20px; }
+  #screen-select h2 { font-size:clamp(10px,2vw,18px); color:var(--c-ui-border); text-align:center; text-shadow:2px 2px 0 #a0820a; }
+  .char-grid { display:flex; gap:20px; flex-wrap:wrap; justify-content:center; }
+  .char-card { width:130px; background:rgba(255,255,255,0.05); border:3px solid rgba(247,201,72,0.3); cursor:pointer; padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:12px; transition:all 0.15s; clip-path:polygon(4px 0%,calc(100% - 4px) 0%,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0% calc(100% - 4px),0% 4px); }
+  .char-card:hover,.char-card.selected { border-color:var(--c-ui-border); background:rgba(247,201,72,0.12); transform:translateY(-4px); box-shadow:0 8px 20px rgba(247,201,72,0.3); }
+  .char-card img { width:64px; height:64px; object-fit:contain; }
+  .char-card .char-placeholder { width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:28px; background:rgba(255,255,255,0.1); border:2px dashed rgba(255,255,255,0.2); }
+  .char-card .char-name { font-family:'VT323',monospace; font-size:16px; color:var(--c-ui-text); text-align:center; }
+  .btn-confirm { background:var(--c-green); color:#0d0820; border:none; padding:12px 24px; font-family:'Press Start 2P',monospace; font-size:10px; cursor:pointer; clip-path:polygon(4px 0%,calc(100% - 4px) 0%,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0% calc(100% - 4px),0% 4px); transition:transform 0.1s,opacity 0.2s; opacity:0.4; }
+  .btn-confirm.ready { opacity:1; }
+  .btn-confirm:hover.ready { transform:scale(1.05); }
+
+  #screen-game { position:relative; overflow:hidden; flex-direction:column; }
+  #game-canvas-wrap { position:relative; flex:1; overflow:hidden; }
+  #map-container { position:absolute; top:0; left:0; transition:none; }
+  #map-layer { display:block; }
+
+  .sprite { position:absolute; width:90px; height:90px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:none; z-index:10; }
+  .sprite img { width:100%; height:100%; object-fit:contain; }
+  .sprite .sp-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:48px; }
+
+  #player-sprite { position:absolute; z-index:20; pointer-events:none; }
+  #player-sprite img { width:110px; height:110px; object-fit:contain; }
+  #player-sprite .sp-placeholder { width:110px; height:110px; font-size:64px; display:flex; align-items:center; justify-content:center; }
+
+  #hud { position:absolute; top:10px; left:10px; display:flex; gap:10px; align-items:center; z-index:30; pointer-events:none; }
+  #hud-char { font-family:'VT323',monospace; font-size:16px; color:var(--c-ui-text); background:rgba(0,0,0,0.6); padding:4px 10px; border:1px solid var(--c-ui-border); }
+  #hud-progress { font-family:'VT323',monospace; font-size:16px; color:var(--c-green); background:rgba(0,0,0,0.6); padding:4px 10px; border:1px solid var(--c-green); }
+  #btn-resolver { position:absolute; bottom:14px; right:14px; z-index:30; background:var(--c-ui-border); color:#1a0e2e; border:none; padding:10px 18px; font-family:'Press Start 2P',monospace; font-size:9px; cursor:pointer; clip-path:polygon(4px 0%,calc(100% - 4px) 0%,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0% calc(100% - 4px),0% 4px); }
+  #btn-resolver:hover { background:#ffe08a; }
+
+  /* ===== DIALOG BOX ===== */
+  #dialog-box {
+    position:absolute; bottom:0; left:0; right:0;
+    background:var(--c-ui-bg);
+    border-top:4px solid var(--c-ui-border);
+    z-index:50; display:none;
+    /* layout: avatar a la izq, texto a la der */
+    flex-direction:row;
+    align-items:flex-end;
+    min-height:140px;
+  }
+  #dialog-box.open { display:flex; }
+
+  /* Avatar del personaje que habla */
+  #dialog-avatar-wrap {
+    flex-shrink:0;
+    width:120px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    padding:0 0 0 12px;
+    /* el avatar sobresale por arriba del cuadro */
+    margin-top:-70px;
+    align-self:flex-end;
+  }
+  #dialog-avatar {
+    width:110px;
+    height:110px;
+    object-fit:contain;
+    border:3px solid var(--c-ui-border);
+    background:#0d0820;
+    display:block;
+  }
+  #dialog-avatar-emoji {
+    width:110px; height:110px;
+    display:none;
+    align-items:center; justify-content:center;
+    font-size:60px;
+    border:3px solid var(--c-ui-border);
+    background:#0d0820;
+  }
+  #dialog-avatar-name {
+    font-family:'Press Start 2P',monospace;
+    font-size:7px;
+    color:var(--c-ui-border);
+    text-align:center;
+    margin-top:4px;
+    max-width:110px;
+    word-break:break-all;
+  }
+
+  /* Texto del diálogo */
+  #dialog-content {
+    flex:1;
+    padding:14px 40px 14px 16px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:8px;
+    min-height:140px;
+  }
+  #dialog-text {
+    font-family:'VT323',monospace;
+    font-size:20px;
+    color:var(--c-ui-text);
+    line-height:1.5;
+  }
+  #dialog-close {
+    position:absolute; bottom:10px; right:16px;
+    font-family:'VT323',monospace; font-size:14px;
+    color:var(--c-ui-border); animation:blink 0.8s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+
+  #house-box { position:absolute; inset:0; background:rgba(0,0,0,0.88); z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; gap:20px; }
+  #house-box.open { display:flex; }
+  #house-title { font-family:'Press Start 2P',monospace; font-size:12px; color:var(--c-ui-border); text-align:center; }
+  #house-img-wrap { width:min(480px,90vw); height:min(320px,55vh); border:4px solid var(--c-ui-border); overflow:hidden; display:flex; align-items:center; justify-content:center; background:#111; }
+  #house-img { max-width:100%; max-height:100%; object-fit:contain; }
+  #house-close { background:transparent; border:2px solid var(--c-ui-border); color:var(--c-ui-border); font-family:'Press Start 2P',monospace; font-size:9px; padding:10px 20px; cursor:pointer; }
+  #house-close:hover { background:rgba(247,201,72,0.15); }
+
+  #scare-box { position:absolute; inset:0; background:#000; z-index:70; display:none; flex-direction:column; align-items:center; justify-content:center; gap:0; }
+  #scare-box.open { display:flex; }
+  #scare-video { width:100%; height:100%; object-fit:contain; display:block; }
+  #scare-close { position:absolute; bottom:20px; right:20px; background:rgba(0,0,0,0.7); border:2px solid #ff3333; color:#ff3333; font-family:'Press Start 2P',monospace; font-size:9px; padding:10px 18px; cursor:pointer; z-index:71; }
+  #scare-close:hover { background:rgba(255,0,0,0.2); }
+
+  #screen-resolver { background:linear-gradient(160deg,#0d0820 0%,#1a0e3a 100%); flex-direction:column; align-items:center; overflow-y:auto; padding:20px; gap:16px; }
+  #screen-resolver h2 { font-size:clamp(9px,1.8vw,14px); color:var(--c-ui-border); text-align:center; }
+  #screen-resolver p { font-family:'VT323',monospace; font-size:18px; color:var(--c-ui-text); text-align:center; }
+  .resolver-list { width:100%; max-width:700px; display:flex; flex-direction:column; gap:10px; }
+  .resolver-row { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.04); border:2px solid rgba(247,201,72,0.2); padding:8px 12px; }
+  .resolver-char-name { font-family:'VT323',monospace; font-size:18px; color:var(--c-ui-text); flex:1; min-width:100px; }
+  .resolver-arrow { color:var(--c-ui-border); font-size:20px; }
+  .resolver-select { flex:2; background:rgba(0,0,0,0.4); border:2px solid rgba(247,201,72,0.4); color:var(--c-ui-text); font-family:'VT323',monospace; font-size:17px; padding:6px 8px; outline:none; cursor:pointer; }
+  .resolver-select:focus { border-color:var(--c-ui-border); }
+  .resolver-buttons { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+  .btn-check { background:var(--c-green); color:#0d0820; border:none; padding:12px 20px; font-family:'Press Start 2P',monospace; font-size:9px; cursor:pointer; clip-path:polygon(4px 0%,calc(100% - 4px) 0%,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0% calc(100% - 4px),0% 4px); }
+  .btn-back { background:transparent; color:var(--c-ui-text); border:2px solid rgba(255,255,255,0.3); padding:12px 20px; font-family:'Press Start 2P',monospace; font-size:9px; cursor:pointer; }
+  #resolver-result { font-family:'Press Start 2P',monospace; font-size:12px; text-align:center; min-height:24px; }
+  #resolver-result.ok { color:var(--c-green); }
+  #resolver-result.fail { color:var(--c-accent); }
+
+  #screen-win { background:radial-gradient(ellipse at center,#1a3a1a 0%,#0d0820 100%); flex-direction:column; align-items:center; justify-content:center; gap:24px; position:relative; overflow:hidden; }
+  #screen-win h2 { font-size:clamp(12px,3vw,22px); color:var(--c-green); text-align:center; text-shadow:0 0 20px rgba(78,204,163,0.6); }
+  #screen-win p { font-family:'VT323',monospace; font-size:22px; color:var(--c-ui-text); text-align:center; max-width:600px; }
+  .confetti-row { font-size:40px; animation:float 2s infinite alternate; }
+  @keyframes float{from{transform:translateY(0)}to{transform:translateY(-15px)}}
+  .btn-replay { background:var(--c-ui-border); color:#1a0e2e; border:none; padding:12px 24px; font-family:'Press Start 2P',monospace; font-size:10px; cursor:pointer; clip-path:polygon(4px 0%,calc(100% - 4px) 0%,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0% calc(100% - 4px),0% 4px); }
+  #win-countdown { font-family:'VT323',monospace; font-size:18px; color:rgba(240,230,200,0.5); }
+  #win-video-overlay { position:absolute; inset:0; background:#000; display:none; align-items:center; justify-content:center; z-index:10; }
+  #win-video-overlay.open { display:flex; }
+  #win-video { width:100%; height:100%; object-fit:contain; }
+
+  #controls-hint { position:absolute; bottom:14px; left:14px; font-family:'VT323',monospace; font-size:13px; color:rgba(240,230,200,0.5); z-index:30; pointer-events:none; line-height:1.8; }
+</style>
+</head>
+<body>
+
+<div id="screen-title" class="screen active">
+  <div class="title-stars" id="stars-bg"></div>
+  <div class="title-logo">
+    <h1>🏘️ EL PUEBLO DE LOS<br>NANCLASITOS</h1>
+    <div class="subtitle">★ BUSCA Y HABLA AL SR.MONOPOLY ★</div>
+  </div>
+  <button class="btn-start" onclick="showScreen('select')">▶ NUEVA PARTIDA</button>
+</div>
+
+<div id="screen-select" class="screen">
+  <h2>ELIGE TU PERSONAJE</h2>
+  <div class="char-grid" id="char-grid"></div>
+  <button class="btn-confirm" id="btn-confirm" onclick="confirmChar()">ELEGIR ▶</button>
+</div>
+
+<div id="screen-game" class="screen">
+  <div id="game-canvas-wrap">
+    <div id="map-container"><canvas id="map-layer"></canvas></div>
+    <div id="player-sprite"></div>
+    <div id="hud">
+      <div id="hud-char">👤 —</div>
+      <div id="hud-progress">🗣️ 0/16</div>
+    </div>
+    <button id="btn-resolver" onclick="openResolver()">🔍 RESOLVER</button>
+    <div id="controls-hint">W A S D · Moverse<br>E / Enter · Interactuar<br>Acércate a casas o personajes</div>
+
+    <!-- DIALOG con avatar -->
+    <div id="dialog-box">
+      <div id="dialog-avatar-wrap">
+        <img id="dialog-avatar" src="" alt="">
+        <div id="dialog-avatar-emoji"></div>
+        <div id="dialog-avatar-name"></div>
+      </div>
+      <div id="dialog-content">
+        <div id="dialog-text"></div>
+      </div>
+      <div id="dialog-close">▼ Presiona E para cerrar</div>
+    </div>
+
+    <div id="house-box">
+      <div id="house-title"></div>
+      <div id="house-img-wrap"><img id="house-img" src="" alt="Interior"></div>
+      <button id="house-close" onclick="closeHouse()">✕ SALIR</button>
+    </div>
+
+    <div id="scare-box">
+      <video id="scare-video" src="video_susto.mp4" playsinline></video>
+      <button id="scare-close" onclick="closeScare()">✕ SALIR</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-resolver" class="screen">
+  <h2>🔍 RESUELVE</h2>
+  <p>RELACIONA CADA PERSONAJE CON SU CASA</p>
+  <div class="resolver-list" id="resolver-list"></div>
+  <div id="resolver-result"></div>
+  <div class="resolver-buttons">
+    <button class="btn-check" onclick="checkSolution()">✔ COMPROBAR</button>
+    <button class="btn-back" onclick="showScreen('game')">◀ VOLVER</button>
+  </div>
+</div>
+
+<div id="screen-win" class="screen">
+  <div class="confetti-row">🎉🏠🎊🏡🎉</div>
+  <h2>¡¡FELICIDADES!!</h2>
+  <p>Has encontrado la casa de todos los vecinos.<br>¡El pueblo está completo!</p>
+  <div id="win-countdown"></div>
+  <button class="btn-replay" onclick="location.reload()">↩ JUGAR DE NUEVO</button>
+  <div id="win-video-overlay">
+    <video id="win-video" src="video_victoria.mp4" playsinline></video>
+  </div>
+</div>
+
+<script>
+const PLAYABLE_CHARS = [
+  { id:'sevillana3', name:'Sevillana3',   emoji:'💃', img:'sevillana3.png' },
+  { id:'nancy',      name:'Nancy',         emoji:'👧', img:'nancy.png' },
+  { id:'paje3',      name:'Paje3',         emoji:'🧝', img:'paje3.png' },
+  { id:'cupido3',    name:'Cupido3',       emoji:'💘', img:'cupido3.png' },
+  { id:'canica3',    name:'NanclaCanica',  emoji:'🔵', img:'canica3.png' },
+];
+
+const HOUSE_COLORS = [
+  '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
+  '#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a',
+  '#ff5722','#795548','#607d8b','#ff9800','#4caf50',
+  '#2196f3','#9c27b0'
+];
+const HOUSE_NAMES = [
+  'Casa Roja','Casa Naranja','Casa Amarilla','Casa Verde','Casa Turquesa',
+  'Casa Azul','Casa Morada','Casa Rosa','Casa Cian','Casa Lima',
+  'Casa Fuego','Casa Marrón','Casa Gris','Casa Ámbar','Casa Esmeralda',
+  'Casa Zafiro','Casa Violeta'
+];
+const TRAP_HOUSE_INDEX = 16;
+
+const WORLD_CHARS = [
+  { id:'wc0',  name:'MRSTALKER',     emoji:'👨', img:'wc0.png',  house:0,  dialog:'*!ADD...* HOMBREEE... ESTABA AQUI TRABAJANDO COMO SIEMPRE, ¿CUANTOS MINUTOS SUMAMOS PARA SILLA3? BUENO ANDA DIME ¿¿HAS ENCONTRADO YA TODAS LAS HABITACIONES?? QUE VIENE ANDER PARA JUGAR AL LOL DATE PRISA. POR CIERTO, NO CREO QUE ESTÉS LEYENDO TODO ESTO ¿NO?' },
+  { id:'wc1',  name:'TIMBER',        emoji:'👩', img:'wc1.png',  house:1,  dialog:'SABIAS QUE... CUANTO PEOR MEJOR PARA TODOS Y CUANTO PEOR PARA TODOS MEJOR, MEJOR PARA MI EL SUYO' },
+  { id:'wc2',  name:'JOSE311',       emoji:'👦', img:'wc2.png',  house:2,  dialog:'A VER SI EL VAGO3 ESTE, CUMPLE CON LO QUE DEBE Y JUGAMOS UN GARTIC O ALGO' },
+  { id:'wc3',  name:'LUCIA',         emoji:'👧', img:'wc3.png',  house:3,  dialog:'¡¡VAYA!! ¿A QUE DEBO EL HONOR DE QUE ME ESCUCHES MÁS DE DOS PALABRAS SEGUIDAS?? TOMA UN VASITO DE AGUA DE BUEY COMO RECOMPENSA. "HAS RECIBIDO AGUA DE BUEY 🥛"' },
+  { id:'wc4',  name:'DACOFI',        emoji:'🧑', img:'wc4.png',  house:4,  dialog:'SOLO HAY UNA PERSONA QUE ME HACE SONREIR CUANDO MI EQUIPO ME DA UN DISGUSTO... CADA VEZ QUE SE PONE EN DIRECTO NISAX... DIGO... NANCLA3 TE DEVUELVE LA VIDA' },
+  { id:'wc5',  name:'CAPTAINLERION', emoji:'👩', img:'wc5.png',  house:5,  dialog:'OYE QUE GUAPA ESA SKIN DE VEIGAR' },
+  { id:'wc6',  name:'IVANOFF',       emoji:'👨', img:'wc6.png',  house:6,  dialog:'BUENAS JOVENZUELO... ¿ME AYUDARÍAS A LLEGAR A CASA? TENGO LA ESPALDA HECHA POLVO... DE TANTO CARREAR ARAMS YA NO PUEDO NI DAR DOS PASOS' },
+  { id:'wc7',  name:'NANOMOSCA',     emoji:'👩', img:'wc7.png',  house:7,  dialog:'SOY GUAPO, RICO Y BUEN JUGADOR, PERO COMO NO SOY CRISTIANO, ME TOCÓ SUSCRIBIRME A NANCLA3' },
+  { id:'wc8',  name:'YAWARA',        emoji:'👨', img:'wc8.png',  house:8,  dialog:'"COMO NO TE VOY A QUERER... NANANA..."  ¡UETSI NANCLA! ¿¿TU POR AQUÍ?? A VER SI SABES ESTE ACERTIJO : CON LOS DEDOS DE LA MANO Y LOS DEDOS DE UN PIE ESAS SON LAS CANICAS QUE NO VAMOS A CORRER...' },
+  { id:'wc9',  name:'AINA',          emoji:'👩', img:'wc9.png',  house:9,  dialog:'Soy María. Mi casa tiene el color de la lima, verde-amarillento y muy alegre.' },
+  { id:'wc10', name:'JOSEREX',       emoji:'🧑', img:'wc10.png', house:10, dialog:'Rodrigo. Mi casa es color fuego... naranja-rojo intenso. ¡Imposible perdérsela!' },
+  { id:'wc11', name:'RENEJR',        emoji:'👩', img:'wc11.png', house:11, dialog:'¿QUE PASÓ MI REY? ÑOOSS TE VEO UN POCO CALVO EH' },
+  { id:'wc12', name:'JUANCASTRO',    emoji:'👨', img:'wc12.png', house:12, dialog:'HOLA, NO SE QUE HAGO AQUI LA VERDAD, PERDONA, ¿TÚ ERES EL AMIGO DE ANDER? CREO QUE VA A EMPEZAR DIRECTO AHORA TENDRÉ QUE IRME A CASA A VERLE' },
+  { id:'wc13', name:'ANUSAGAMER',    emoji:'👩', img:'wc13.png', house:13, dialog:'¡¡¡HOMBRE!!! PEQUEÑO DICTADOR ¿QUE HACES POR AQUÍ? IMAGINO QUE TOCANDO CÉSPED DESPUÉS DE TANTA VEX, ¿PODRÍAS AYUDARME A ENCONTRAR MI SETUP? ES QUE ACABO DE VOLVER DE ARABIA Y HAN CAMBIADO TODA LA CIUDAD' },
+  { id:'wc14', name:'RJ',            emoji:'👨', img:'wc14.png', house:14, dialog:'VAYA VAYA... ¿A QUIEN TENEMOS POR AQUI? TE VEO MAS PERDIDO QUE DE COSTUMBRE... AUNQUE YA ES TRADICIÓN VERTE SIN SABER MUY BIEN LO QUE HACES. VENGA VA AHORA ENSERIO, DIME, ¿CUAL ES MI SETUP?' },
+  { id:'wc15', name:'ANDRÉS',        emoji:'👩', img:'wc15.png', house:15, dialog:'EHHH... ¿PERO QUÉ HACES BOBO? ¿NO VES QUE ESTOY INTENTANDO ESQUIVAR LOS CARAMELOS DE LA CABALGATA? DESPUÉS QUERRÁS ENCIMA QUE TE GRABE VIDEOS PARA QUE REACCIONES... ANDA A VER SI ENCUENTRAS MI CASA QUE TODAVÍA LLEGO PARA VER AL RECRE' },
+];
+
+const NPC_CHARS = [
+  { id:'npc0', name:'PAJE3',         emoji:'👵', img:'npc0.png', dialog:'¡¡¡FELIZ NAVIDAD!!! APARTA NIÑO.' },
+  { id:'npc1', name:'CUPIDO3',       emoji:'🐱', img:'npc1.png', dialog:'¿¿QUIERES ENCONTRAR EL AMOR?? TE RECOMIENDO UNA BUENA CITA EN EL JACUZZI' },
+  { id:'npc2', name:'SEVILLANA3',    emoji:'📮', img:'npc2.png', dialog:'OLEEEE TUUU GUAPOOO, GITANA GITANA PERO DE GITANA' },
+  { id:'npc3', name:'NANCLA CANICA', emoji:'🧙', img:'npc3.png', dialog:'NO ME DA PARA LA PAJILLA, HERMANO NO ME LLEGO, LO IMPORTANTE DE ESTAR SANO Y HACER EJERCICIO' },
+  { id:'npc4', name:'NANCY',         emoji:'🐑', img:'npc4.png', dialog:'TÚ ERES MÍO, COMO TE PILLE... *GOLPEA SU BATE CON SU MANO* ¿HAS VISTO COMO LE PEGO?' },
+  { id:'npc5', name:'El Alcalde',    emoji:'🎩', img:'npc5.png', dialog:'¡BIENVENIDO AL PUEBLO! SOY EL ALCALDE. TENEMOS 17 CASAS, CADA UNA DE UN COLOR DIFERENTE. 16 VECINOS BUSCAN LA SUYA, LA CASA QUE SOBRA... TE LA PUEDES QUEDAR SI QUIERES.' },
+];
+
+const TILE=48, MAP_COLS=40, MAP_ROWS=30;
+const MAP_W=MAP_COLS*TILE, MAP_H=MAP_ROWS*TILE;
+
+const HOUSE_POSITIONS = [
+  [3,2],[12,4],[22,2],[33,4],[6,11],[16,8],[28,10],[36,12],
+  [2,18],[10,21],[20,17],[30,19],[37,22],[7,26],[17,25],[27,24],[36,27],
+];
+const WCHAR_POSITIONS = [
+  [8,5],[25,6],[14,12],[4,7],[32,7],[19,13],[9,16],[35,16],
+  [5,23],[23,21],[13,25],[31,14],[18,20],[26,27],[3,14],[34,25],
+];
+const NPC_POSITIONS = [
+  [19,10],[11,7],[29,22],[6,20],[33,10],[20,5],
+];
+
+let selectedChar=null, playerX=MAP_W/2, playerY=MAP_H/2;
+let dialogOpen=false, houseOpen=false, scareOpen=false;
+let talkedTo=new Set(), keys={}, animFrame=null;
+let shuffledHouseIndices=[], shuffledCharsForResolver=[];
+
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function buildStars(){
+  const bg=document.getElementById('stars-bg');
+  for(let i=0;i<80;i++){const s=document.createElement('div');s.className='star';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.animationDelay=Math.random()*2+'s';s.style.width=s.style.height=(Math.random()<0.3?3:2)+'px';bg.appendChild(s);}
+}
+buildStars();
+
+function buildCharGrid(){
+  const grid=document.getElementById('char-grid');grid.innerHTML='';
+  PLAYABLE_CHARS.forEach(c=>{
+    const card=document.createElement('div');card.className='char-card';card.dataset.id=c.id;
+    card.innerHTML=`<img src="${c.img}" alt="${c.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="char-placeholder" style="display:none">${c.emoji}</div><div class="char-name">${c.name}</div>`;
+    card.onclick=()=>{document.querySelectorAll('.char-card').forEach(x=>x.classList.remove('selected'));card.classList.add('selected');selectedChar=c;document.getElementById('btn-confirm').classList.add('ready');};
+    grid.appendChild(card);
+  });
+}
+buildCharGrid();
+
+function confirmChar(){if(!selectedChar)return;initGame();showScreen('game');}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  if(id==='game') requestAnimationFrame(gameLoop); else cancelAnimationFrame(animFrame);
+}
+
+// ===== MAP =====
+function drawMap(ctx){
+  ctx.fillStyle='#4a9c4a';ctx.fillRect(0,0,MAP_W,MAP_H);
+  for(let r=0;r<MAP_ROWS;r++) for(let c=0;c<MAP_COLS;c++) if((c+r)%2===0){ctx.fillStyle='#3d8c3d';ctx.fillRect(c*TILE,r*TILE,TILE,TILE);}
+  ctx.fillStyle='#c9a96e';
+  for(let c=0;c<MAP_COLS;c++){ctx.fillRect(c*TILE,9*TILE,TILE,TILE*2);ctx.fillRect(c*TILE,19*TILE,TILE,TILE*2);}
+  for(let r=0;r<MAP_ROWS;r++){ctx.fillRect(0,r*TILE,TILE*2,TILE);ctx.fillRect(38*TILE,r*TILE,TILE*2,TILE);ctx.fillRect(19*TILE,r*TILE,TILE*2,TILE);}
+  ctx.fillStyle='#b8935a';
+  for(let c=0;c<MAP_COLS;c+=4){ctx.fillRect(c*TILE+TILE/2-2,10*TILE,4,TILE);ctx.fillRect(c*TILE+TILE/2-2,20*TILE,4,TILE);}
+  ctx.fillStyle='#2a6bb5';
+  ctx.fillRect(0,0,MAP_W,TILE);ctx.fillRect(0,MAP_H-TILE,MAP_W,TILE);ctx.fillRect(0,0,TILE,MAP_H);ctx.fillRect(MAP_W-TILE,0,TILE,MAP_H);
+  [[2,5],[6,8],[10,5],[14,8],[18,5],[22,8],[26,5],[30,8],[34,5],[2,17],[6,14],[10,17],[14,14],[18,17],[22,14],[26,17],[30,14],[34,17],[2,25],[8,27],[16,25],[24,27],[32,25],[38,27],[37,5],[37,8],[37,14],[37,17],[37,25]].forEach(([tc,tr])=>{
+    const tx=tc*TILE+TILE/2,ty=tr*TILE+TILE/2;
+    ctx.fillStyle='#2d6e2d';ctx.beginPath();ctx.arc(tx,ty,16,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#3a8a3a';ctx.beginPath();ctx.arc(tx-4,ty-4,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#4d4d1a';ctx.fillRect(tx-3,ty+10,6,10);
+  });
+  HOUSE_POSITIONS.forEach(([hc,hr],i)=>drawHouse(ctx,hc*TILE,hr*TILE,HOUSE_COLORS[i],i===TRAP_HOUSE_INDEX));
+}
+
+function drawHouse(ctx,x,y,color,isTrap){
+  const s=TILE*1.6,bx=x-s*0.1,by=y;
+  ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(bx+4,by+4,s,s*0.7+8);
+  ctx.fillStyle=color;ctx.fillRect(bx,by+s*0.35,s,s*0.65);
+  ctx.fillStyle=shadeColor(color,-40);ctx.beginPath();ctx.moveTo(bx-6,by+s*0.38);ctx.lineTo(bx+s/2,by);ctx.lineTo(bx+s+6,by+s*0.38);ctx.closePath();ctx.fill();
+  ctx.fillStyle=shadeColor(color,-60);const dw=s*0.25,dh=s*0.35;ctx.fillRect(bx+s/2-dw/2,by+s-dh,dw,dh);
+  ctx.fillStyle='#f7c948';ctx.beginPath();ctx.arc(bx+s/2+dw*0.25,by+s-dh*0.45,2.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#b3d9f5';
+  ctx.fillRect(bx+s*0.15,by+s*0.5,s*0.22,s*0.2);
+  ctx.fillRect(bx+s*0.62,by+s*0.5,s*0.22,s*0.2);
+  ctx.fillStyle='#fff';ctx.font='8px sans-serif';ctx.textAlign='center';
+  const idx=HOUSE_POSITIONS.findIndex(p=>p[0]*TILE===x+Math.round(s*0.1)||p[0]*TILE===x);
+  ctx.fillText(HOUSE_NAMES[idx>=0?idx:0].slice(0,14),bx+s/2,by-4);
+}
+
+function shadeColor(hex,amt){let n=parseInt(hex.slice(1),16);return'#'+[(n>>16)+amt,((n>>8)&0xff)+amt,(n&0xff)+amt].map(v=>Math.min(255,Math.max(0,v)).toString(16).padStart(2,'0')).join('');}
+
+// ===== GAME INIT =====
+let mapCanvas,mapCtx,mapContainer,playerEl,gameWrap,worldSprites=[];
+
+function initGame(){
+  mapCanvas=document.getElementById('map-layer');mapCtx=mapCanvas.getContext('2d');
+  mapCanvas.width=MAP_W;mapCanvas.height=MAP_H;
+  mapContainer=document.getElementById('map-container');mapContainer.style.width=MAP_W+'px';mapContainer.style.height=MAP_H+'px';
+  playerEl=document.getElementById('player-sprite');gameWrap=document.getElementById('game-canvas-wrap');
+  drawMap(mapCtx);buildWorldSprites();
+  playerX=MAP_W/2;playerY=MAP_H/2;
+  playerEl.innerHTML=`<img src="${selectedChar.img}" alt="${selectedChar.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="sp-placeholder" style="display:none">${selectedChar.emoji}</div>`;
+  document.getElementById('hud-char').textContent='👤 '+selectedChar.name;
+  shuffledHouseIndices=shuffle([...Array(16).keys()]);
+  shuffledCharsForResolver=shuffle([...WORLD_CHARS]);
+  document.addEventListener('keydown',onKeyDown);
+  document.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+  updateHUD();
+}
+
+function buildWorldSprites(){
+  document.querySelectorAll('.sprite').forEach(s=>s.remove());worldSprites=[];
+  WORLD_CHARS.forEach((wc,i)=>{
+    const[sc,sr]=WCHAR_POSITIONS[i];const el=document.createElement('div');el.className='sprite';
+    el.style.left=(sc*TILE+TILE/2-45)+'px';el.style.top=(sr*TILE+TILE/2-45)+'px';
+    el.innerHTML=`<img src="${wc.img}" alt="${wc.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="sp-placeholder" style="display:none">${wc.emoji}</div>`;
+    mapContainer.appendChild(el);worldSprites.push({el,wc,type:'world',x:sc*TILE+TILE/2,y:sr*TILE+TILE/2});
+  });
+  NPC_CHARS.forEach((npc,i)=>{
+    const[sc,sr]=NPC_POSITIONS[i];const el=document.createElement('div');el.className='sprite';
+    el.style.left=(sc*TILE+TILE/2-45)+'px';el.style.top=(sr*TILE+TILE/2-45)+'px';
+    el.innerHTML=`<img src="${npc.img}" alt="${npc.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="sp-placeholder" style="display:none">${npc.emoji}</div>`;
+    mapContainer.appendChild(el);worldSprites.push({el,wc:npc,type:'npc',x:sc*TILE+TILE/2,y:sr*TILE+TILE/2});
+  });
+}
+
+const SPEED=3,INTERACT_DIST=60,HOUSE_INTERACT_DIST=70;
+
+function gameLoop(){
+  if(!document.getElementById('screen-game').classList.contains('active'))return;
+  if(!dialogOpen&&!houseOpen&&!scareOpen){
+    let dx=0,dy=0;
+    if(keys['w']||keys['arrowup'])dy=-SPEED;if(keys['s']||keys['arrowdown'])dy=SPEED;
+    if(keys['a']||keys['arrowleft'])dx=-SPEED;if(keys['d']||keys['arrowright'])dx=SPEED;
+    playerX=Math.max(TILE+20,Math.min(MAP_W-TILE-20,playerX+dx));
+    playerY=Math.max(TILE+20,Math.min(MAP_H-TILE-20,playerY+dy));
+  }
+  updateCamera();animFrame=requestAnimationFrame(gameLoop);
+}
+
+function updateCamera(){
+  const vw=gameWrap.clientWidth,vh=gameWrap.clientHeight;
+  let cx=Math.max(0,Math.min(MAP_W-vw,playerX-vw/2));
+  let cy=Math.max(0,Math.min(MAP_H-vh,playerY-vh/2));
+  mapContainer.style.transform=`translate(${-cx}px,${-cy}px)`;
+  playerEl.style.left=(playerX-cx-55)+'px';playerEl.style.top=(playerY-cy-55)+'px';
+}
+
+function onKeyDown(e){
+  const k=e.key.toLowerCase();keys[k]=true;
+  if((k==='e'||k==='enter')&&!houseOpen&&!scareOpen){if(dialogOpen){closeDialog();return;}tryInteract();}
+  if(k==='escape'){if(dialogOpen)closeDialog();if(houseOpen)closeHouse();if(scareOpen)closeScare();}
+}
+
+function tryInteract(){
+  for(const sp of worldSprites){
+    if(Math.hypot(playerX-sp.x,playerY-sp.y)<INTERACT_DIST){
+      openDialog(sp.wc.name,sp.wc.dialog,sp.wc.img,sp.wc.emoji);
+      if(sp.type==='world')talkedTo.add(sp.wc.id);
+      updateHUD();return;
+    }
+  }
+  for(let i=0;i<HOUSE_POSITIONS.length;i++){
+    const[hc,hr]=HOUSE_POSITIONS[i];
+    if(Math.hypot(playerX-(hc*TILE+TILE*0.75),playerY-(hr*TILE+TILE*0.8))<HOUSE_INTERACT_DIST){
+      if(i===TRAP_HOUSE_INDEX)openScare();else openHouse(i);return;
+    }
+  }
+}
+
+// ===== DIALOG con avatar =====
+function openDialog(name, text, imgSrc, emoji){
+  const avatar = document.getElementById('dialog-avatar');
+  const avatarEmoji = document.getElementById('dialog-avatar-emoji');
+  const avatarName = document.getElementById('dialog-avatar-name');
+
+  // Intentar cargar la imagen; si falla, mostrar emoji
+  avatar.style.display = 'block';
+  avatarEmoji.style.display = 'none';
+  avatar.src = imgSrc;
+  avatar.onerror = () => {
+    avatar.style.display = 'none';
+    avatarEmoji.style.display = 'flex';
+    avatarEmoji.textContent = emoji;
+  };
+  avatar.onload = () => {
+    avatar.style.display = 'block';
+    avatarEmoji.style.display = 'none';
+  };
+
+  avatarName.textContent = name;
+  document.getElementById('dialog-text').textContent = text;
+  document.getElementById('dialog-box').classList.add('open');
+  dialogOpen = true;
+}
+
+function closeDialog(){
+  document.getElementById('dialog-box').classList.remove('open');
+  dialogOpen=false;
+}
+
+function openHouse(i){
+  document.getElementById('house-title').textContent='🏠 '+HOUSE_NAMES[i];
+  const img=document.getElementById('house-img');img.src='casa_interior_'+i+'.png';
+  img.onerror=()=>{img.src='';img.style.display='none';let ph=document.getElementById('house-img-ph');if(!ph){ph=document.createElement('div');ph.id='house-img-ph';ph.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#f7c948;font-family:VT323,monospace;font-size:20px;text-align:center;';document.getElementById('house-img-wrap').appendChild(ph);}ph.innerHTML=`<div style="font-size:60px">🏠</div><div>${HOUSE_NAMES[i]}</div><div style="font-size:14px;color:#aaa;">(Pon aquí: casa_interior_${i}.png)</div>`;};
+  img.onload=()=>{img.style.display='';const ph=document.getElementById('house-img-ph');if(ph)ph.innerHTML='';};
+  document.getElementById('house-box').classList.add('open');houseOpen=true;
+}
+function closeHouse(){document.getElementById('house-box').classList.remove('open');houseOpen=false;}
+
+function openScare(){
+  const vid=document.getElementById('scare-video');
+  vid.currentTime=0;vid.play().catch(()=>{});
+  document.getElementById('scare-box').classList.add('open');scareOpen=true;
+}
+function closeScare(){
+  const vid=document.getElementById('scare-video');
+  vid.pause();vid.currentTime=0;
+  document.getElementById('scare-box').classList.remove('open');scareOpen=false;
+}
+
+function updateHUD(){document.getElementById('hud-progress').textContent=`🗣️ ${talkedTo.size}/16`;}
+
+// ===== RESOLVER =====
+function openResolver(){
+  buildResolverList();showScreen('resolver');
+  document.getElementById('resolver-result').textContent='';
+  document.getElementById('resolver-result').className='';
+}
+
+function buildResolverList(){
+  const list=document.getElementById('resolver-list');list.innerHTML='';
+  shuffledCharsForResolver.forEach(wc=>{
+    const row=document.createElement('div');row.className='resolver-row';
+    const options=shuffledHouseIndices.map(i=>`<option value="${i}">🏠 ${HOUSE_NAMES[i]}</option>`).join('');
+    row.innerHTML=`<div class="resolver-char-name">${wc.emoji} ${wc.name}</div><div class="resolver-arrow">→</div><select class="resolver-select" id="resolve_${wc.id}"><option value="">-- elige casa --</option>${options}</select>`;
+    list.appendChild(row);
+  });
+}
+
+function checkSolution(){
+  const result=document.getElementById('resolver-result');
+  let allCorrect=true,allFilled=true;
+  WORLD_CHARS.forEach(wc=>{
+    const sel=document.getElementById('resolve_'+wc.id);
+    if(sel.value===''){allFilled=false;return;}
+    if(parseInt(sel.value)!==wc.house)allCorrect=false;
+  });
+  if(!allFilled){result.textContent='⚠️ Asigna una casa a cada personaje';result.className='fail';return;}
+  if(allCorrect){
+    result.textContent='✅ ¡CORRECTO! ¡Lo has conseguido!';result.className='ok';
+    setTimeout(()=>{showScreen('win');startWinSequence();},1800);
+  } else {
+    result.textContent='❌ INCORRECTO. ¡Sigue investigando!';result.className='fail';
+    setTimeout(()=>showScreen('game'),1800);
+  }
+}
+
+// ===== WIN =====
+let winTimer=null;
+function startWinSequence(){
+  const overlay=document.getElementById('win-video-overlay');
+  const vid=document.getElementById('win-video');
+  const countdown=document.getElementById('win-countdown');
+  overlay.classList.remove('open');vid.pause();vid.currentTime=0;
+  let secs=5;
+  countdown.textContent='🎬 Vídeo en '+secs+'...';
+  if(winTimer)clearInterval(winTimer);
+  winTimer=setInterval(()=>{
+    secs--;
+    if(secs>0){countdown.textContent='🎬 Vídeo en '+secs+'...';}
+    else{clearInterval(winTimer);countdown.textContent='';overlay.classList.add('open');vid.play().catch(()=>{});}
+  },1000);
+}
+</script>
+</body>
+</html>
